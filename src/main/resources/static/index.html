@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI Chat · 阶段 0</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 24px;
+      font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #f7f7f8;
+      color: #171717;
+    }
+    .wrap { max-width: 760px; margin: 0 auto; }
+    h1 { margin: 0 0 8px; font-size: 18px; font-weight: 500; }
+    .hint { margin: 0 0 16px; font-size: 13px; color: #52525b; }
+    .card {
+      padding: 16px;
+      background: #ffffff;
+      border: 1px solid rgba(23, 23, 23, 0.12);
+      border-radius: 12px;
+    }
+    .row { display: flex; gap: 8px; }
+    input {
+      flex: 1;
+      min-width: 0;
+      height: 40px;
+      padding: 0 12px;
+      font-size: 14px;
+      color: #171717;
+      background: #ffffff;
+      border: 1px solid rgba(23, 23, 23, 0.16);
+      border-radius: 8px;
+      outline: none;
+    }
+    input:focus { border-color: #0fdc78; }
+    button {
+      height: 40px;
+      padding: 0 16px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #004d26;
+      background: #0fdc78;
+      border: 0;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+    #out {
+      min-height: 160px;
+      margin-top: 16px;
+      padding: 12px;
+      font-size: 14px;
+      line-height: 1.7;
+      background: #f7f7f8;
+      border-radius: 8px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>AI Chat · 阶段 0</h1>
+    <p class="hint">唯一目标：看到字一个个蹦出来，说明 key、网络、SSE 三段都通了。</p>
+    <div class="card">
+      <div class="row">
+        <input id="msg" placeholder="比如：用一句话解释什么是 RAG" autocomplete="off" />
+        <button id="send">发送</button>
+      </div>
+      <div id="out">等待输入…</div>
+    </div>
+  </div>
+
+  <script>
+    const msgEl = document.getElementById('msg');
+    const outEl = document.getElementById('out');
+    const btnEl = document.getElementById('send');
+
+    let es = null;
+
+    function setBusy(busy) {
+      btnEl.disabled = busy;
+      msgEl.disabled = busy;
+    }
+
+    function closeStream() {
+      if (es) {
+        es.close();
+        es = null;
+      }
+    }
+
+    function send() {
+      const text = msgEl.value.trim();
+      if (!text) return;
+
+      closeStream();
+      outEl.textContent = '';
+      setBusy(true);
+
+      es = new EventSource('/api/chat/stream?message=' + encodeURIComponent(text));
+
+      es.onmessage = (e) => {
+        outEl.textContent += e.data;
+      };
+
+      // 服务端完成时发来的具名事件，收到就主动断开，避免 EventSource 自动重连
+      es.addEventListener('done', () => {
+        closeStream();
+        setBusy(false);
+      });
+
+      es.onerror = () => {
+        const hadContent = outEl.textContent.length > 0;
+        closeStream();
+        setBusy(false);
+        if (!hadContent) {
+          outEl.textContent = '【连接失败】检查后端是否已启动、LLM_API_KEY 是否配置正确';
+        }
+      };
+    }
+
+    btnEl.addEventListener('click', send);
+    msgEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') send();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+server:
+  port: 8080
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      # 强制在响应头上写 charset，否则直接访问 SSE 地址时浏览器会按本地编码（GBK）解析而乱码
+      force: true
+
+spring:
+  application:
+    name: ai-chat-demo
+  ai:
+    openai:
+      # 全部从环境变量读取，代码和配置文件里都不出现明文 key
+      api-key: ${LLM_API_KEY}
+      # 国产模型大多兼容 OpenAI 协议，改这一行就能换厂商，代码不用动
+      base-url: ${LLM_BASE_URL:https://api.deepseek.com}
+      chat:
+        options:
+          model: ${LLM_MODEL:deepseek-chat}
+          temperature: 0.7
+
+logging:
+  level:
+    com.example.aichat: DEBUG
